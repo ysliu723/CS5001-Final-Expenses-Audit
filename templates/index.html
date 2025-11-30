@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expenses Audit</title>
+    <style>
+        :root {
+            /* Color Palette - Modern Indigo Theme */
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-body: #f3f4f6;
+            --bg-card: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            
+            /* Radius */
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-full: 9999px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 40px;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        .navbar {
+            background: var(--bg-card);
+            box-shadow: var(--shadow-sm);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            margin-bottom: 2rem;
+        }
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        /* Benford Chart */
+        .chart-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            min-height: 250px; /* Force min height */
+        }
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 15px;
+            height: 200px;
+            padding-top: 20px;
+            width: 100%;
+        }
+        .bar-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            height: 100%;
+            justify-content: flex-end;
+        }
+        .bar-wrapper {
+            width: 100%;
+            flex: 1; /* Take available height */
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            position: relative;
+            min-height: 150px; /* Ensure bars have room */
+        }
+        .bar {
+            width: 40%;
+            background: var(--primary);
+            border-radius: 4px 4px 0 0;
+            transition: height 0.3s;
+            min-height: 1px; /* Ensure visible even if 0 */
+        }
+        .bar.expected {
+            background: #e5e7eb;
+            position: absolute;
+            z-index: 1;
+            width: 80%;
+            opacity: 0.7;
+        }
+        .bar.actual {
+            z-index: 2;
+            background: #4f46e5; /* Explicit color */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .bar-label { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 5px; }
+        .bar-val { font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--text-main); }
+
+        .stat-info h3 {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .stat-info .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 4px;
+        }
+
+        /* Main Content Card */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        /* Toolbar */
+        .toolbar {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            background: #f9fafb;
+        }
+        .toolbar-group {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 0.5rem 0.75rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .input-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-right: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .input-group input {
+            border: none;
+            font-size: 0.875rem;
+            width: 80px;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+        .btn:active { transform: scale(0.98); }
+        
+        .btn-primary { background: var(--primary); color: white; border-color: transparent; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        
+        /* Unified Tool Button Style */
+        .btn-tool {
+            background: white;
+            color: var(--text-main);
+            border-color: var(--border);
+        }
+        .btn-tool:hover {
+            background: #f3f4f6; /* Light gray bg */
+            border-color: #4b5563; /* Darker border */
+            color: #111827; /* Dark text */
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        /* REMOVED: Individual colorful hover states */
+
+        .btn-white { background: white; color: var(--text-main); border-color: var(--border); }
+        .btn-white:hover { background: #f9fafb; border-color: #d1d5db; }
+
+        .btn-danger { background: white; color: var(--danger); border-color: var(--border); }
+        .btn-danger:hover { background: #fef2f2; border-color: #fecaca; }
+
+        .btn-ghost { background: transparent; color: var(--text-muted); padding: 0.4rem; border: none; box-shadow: none; }
+        .btn-ghost:hover { background: #f3f4f6; color: var(--text-main); }
+
+        /* Table */
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 700px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+        th {
+            background: #f9fafb;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            padding: 1rem 1.5rem;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+        tbody tr { transition: background 0.1s; }
+        tbody tr:hover { background: #f9fafb; }
+        
+        /* Status Rows */
+        tr.row-duplicate td { background: #fff1f2; } /* Red tint */
+        tr.row-weekend td { background: #fffbeb; }   /* Yellow tint */
+        tr.row-near td { background: #eff6ff; }      /* Blue tint (MATCHING LEGEND) */
+        tr.row-over td { background: #fef2f2; }      /* Red tint */
+        tr.row-suspicious td { background: #f5f3ff; } /* Purple tint */
+        tr.row-discrepancy td { background: #fff7ed; } /* Orange tint */
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.625rem;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+        .badge-dup { background: #fee2e2; color: #991b1b; }
+        .badge-weekend { background: #fef3c7; color: #92400e; }
+        .badge-near { background: #dbeafe; color: #1e40af; }
+        .badge-over { background: #fecaca; color: #b91c1c; }
+        .badge-suspicious { background: #ede9fe; color: #5b21b6; }
+        .badge-discrepancy { background: #ffedd5; color: #9a3412; }
+
+        /* Loading & Empty States */
+        .loading, .no-data {
+            padding: 4rem;
+            text-align: center;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .loading-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid #e5e7eb;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .modal.show { opacity: 1; }
+        
+        .modal-content {
+            background: white;
+            margin: 4vh auto;
+            width: 90%;
+            max-width: 650px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(20px);
+            transition: transform 0.3s;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+        .modal.show .modal-content { transform: translateY(0); }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 { font-size: 1.25rem; font-weight: 600; }
+        .close-btn { font-size: 1.5rem; cursor: pointer; color: var(--text-muted); line-height: 1; }
+        
+        .modal-body { padding: 1.5rem; overflow-y: auto; }
+        
+        .modal-footer {
+            padding: 1.25rem 1.5rem;
+            background: #f9fafb;
+            border-top: 1px solid var(--border);
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        /* Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        .form-group { margin-bottom: 1rem; }
+        .form-group.full-width { grid-column: span 2; }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: white;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .toast {
+            background: white;
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            border-left: 4px solid var(--primary);
+            animation: slideIn 0.3s ease-out;
+            transform-origin: right;
+        }
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--danger); }
+        .toast-content { flex: 1; font-size: 0.875rem; }
+        .toast-title { font-weight: 600; margin-bottom: 2px; }
+        .toast-msg { color: var(--text-muted); }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+
+        /* Utilities */
+        .hidden { display: none !important; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        
+        /* SVG Icons classes */
+        .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                Expenses Audit
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Add Record
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Stats Dashboard -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #e0e7ff; color: var(--primary);">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M9 17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2zm9-7a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div class="stat-info">
+                    <h3>Total Records</h3>
+                    <div class="value">{{ total_rows }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #d1fae5; color: #059669;">
+                    <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                </div>
+                <div class="stat-info">
+                    <h3>Total Amount</h3>
+                    <div class="value" style="font-size: 1.25rem;">{{ total_amount }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #f3f4f6; color: #4b5563;">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </div>
+                <div class="stat-info">
+                    <h3>Date Range</h3>
+                    <div class="value" style="font-size: 1rem;">{{ date_range }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="card">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    <button class="btn btn-white" onclick="showAll()">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        All
+                    </button>
+                    <button class="btn btn-tool tool-dup" onclick="findDuplicates()">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a2 2 0 0 0-2-2-3-3 0 0 0-3-3"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        Duplicates
+                    </button>
+                    <button class="btn btn-tool tool-weekend" onclick="flagWeekends()">
+                        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        Weekends
+                    </button>
+                    <button class="btn btn-tool tool-threshold" onclick="openThresholdModal()">
+                        <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        Threshold
+                    </button>
+                    <button class="btn btn-tool tool-benford" onclick="analyzeBenford()">
+                        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                        Benford
+                    </button>
+                    <button class="btn btn-tool tool-keyword" onclick="flagSuspicious()">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        Keywords
+                    </button>
+                    <button class="btn btn-tool tool-diff" onclick="flagDiscrepancies()">
+                        <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        Diff Check
+                    </button>
+                </div>
+
+                <div class="toolbar-group">
+                    <button class="btn btn-white" onclick="downloadCSV()">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Download CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Area -->
+            <div id="result">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading data...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal -->
+    <div id="recordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">New Record</h2>
+                <span class="close-btn" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="recordForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Expense ID *</label>
+                            <input type="text" id="expense_id" placeholder="e.g. EXP-001" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Employee *</label>
+                            <input type="text" id="employee" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Department *</label>
+                            <input type="text" id="department" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Date *</label>
+                            <input type="date" id="expense_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Amount (USD) *</label>
+                            <input type="number" id="amount_usd" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Currency</label>
+                            <input type="text" id="currency" value="USD" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Category *</label>
+                            <select id="category" required>
+                                <option value="">Select Category...</option>
+                                <option value="Meal">Meal</option>
+                                <option value="Hotel">Hotel</option>
+                                <option value="Air">Air Travel</option>
+                                <option value="Transport">Transport</option>
+                                <option value="Client Gift">Client Gift</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Merchant *</label>
+                            <input type="text" id="merchant" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Invoice No *</label>
+                            <input type="text" id="invoice_no" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Invoice City</label>
+                            <input type="text" id="invoice_city">
+                        </div>
+                        <div class="form-group">
+                            <label>Trip To City</label>
+                            <input type="text" id="trip_to_city">
+                        </div>
+                        <div class="form-group">
+                            <label>Approver</label>
+                            <input type="text" id="approver">
+                        </div>
+                        <div class="form-group">
+                            <label>Paid Amount</label>
+                            <input type="number" id="paid_amount_usd" step="0.01">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-white" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRecord()">Save Record</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Threshold Params Modal -->
+    <div id="thresholdModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 style="font-size: 1.1rem;">Set Analysis Parameters</h2>
+                <span class="close-btn" onclick="closeThresholdModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.9rem;">
+                    Configure thresholds for flagging high-value transactions.
+                </p>
+                <div class="form-group">
+                    <label>High Value Limit ($)</label>
+                    <input type="number" id="param_limit" value="5000">
+                    <small style="color: var(--text-muted);">Transactions above this amount will be flagged.</small>
+                </div>
+                <div class="form-group">
+                    <label>Buffer Range ($)</label>
+                    <input type="number" id="param_buffer" value="200">
+                    <small style="color: var(--text-muted);">Transactions within (Limit - Buffer) will be flagged as "Near Limit".</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-white" onclick="closeThresholdModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="runThresholdAnalysis()">Run Analysis</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <script>
+        let currentData = [];
+        let editingId = null;
+        
+        // Pagination State
+        let currentOffset = 0;
+        const PAGE_SIZE = 100;
+        let isShowingAll = false; // Track if we are in "Show All" mode
+        
+        // --- Toast System ---
+        function showToast(title, message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="toast-icon">
+                    ${type === 'success' ? '✅' : '❌'}
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-msg">${message}</div>
+                </div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Data Fetching ---
+        function showAll(reset = true) {
+            if (reset) {
+                currentOffset = 0;
+                isShowingAll = true;
+                setLoading(true);
+            } else {
+                // Load More mode
+                const btn = document.getElementById('loadMoreBtn');
+                if(btn) btn.innerText = 'Loading...';
+            }
+
+            fetch(`/api/all?offset=${currentOffset}&limit=${PAGE_SIZE}`)
+                .then(r => r.json())
+                .then(resp => {
+                    // resp = { data: [...], total: 1234, has_more: true }
+                    const newData = resp.data;
+                    
+                    if (reset) {
+                        currentData = newData;
+                        displayTable(newData, 'All Records', true, false); // false = overwrite
+                    } else {
+                        currentData = currentData.concat(newData);
+                        appendRows(newData, true); // true = has actions
+                    }
+                    
+                    updateLoadMoreUI(resp.has_more, resp.total);
+                    currentOffset += PAGE_SIZE;
+                })
+                .catch(err => {
+                    showToast('Error', 'Failed to load data', 'error');
+                    setLoading(false);
+                });
+        }
+        
+        // Specialized Analysis Functions (No pagination for simplicity in this demo)
+        function findDuplicates() {
+            isShowingAll = false;
+            setLoading(true);
+            fetch('/api/duplicates')
+                .then(r => r.json())
+                .then(data => {
+                    currentData = data;
+                    displayTable(data, 'Duplicate Invoices', false);
+                });
+        }
+        
+        function flagWeekends() {
+            isShowingAll = false;
+            setLoading(true);
+            fetch('/api/weekends')
+                .then(r => r.json())
+                .then(data => {
+                    currentData = data;
+                    displayTable(data, 'Weekend Expenses', false);
+                });
+        }
+        
+        function openThresholdModal() {
+            const modal = document.getElementById('thresholdModal');
+            modal.style.display = 'block';
+            setTimeout(() => modal.classList.add('show'), 10);
+        }
+
+        function closeThresholdModal() {
+            const modal = document.getElementById('thresholdModal');
+            modal.classList.remove('show');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+
+        function runThresholdAnalysis() {
+            closeThresholdModal();
+            isShowingAll = false;
+            setLoading(true);
+            const lim = document.getElementById('param_limit').value || '5000';
+            const buf = document.getElementById('param_buffer').value || '200';
+            
+            fetch(`/api/threshold?limit=${encodeURIComponent(lim)}&buffer=${encodeURIComponent(buf)}`)
+                .then(r => r.json())
+                .then(data => {
+                    currentData = data;
+                    displayTable(data, `Threshold Violations (> $${lim})`, false);
+                })
+                .catch(err => {
+                    setLoading(false);
+                    showToast('Error', 'Analysis failed', 'error');
+                });
+        }
+
+        function analyzeBenford() {
+            isShowingAll = false;
+            setLoading(true);
+            fetch('/api/benford')
+                .then(r => r.json())
+                .then(data => {
+                    displayBenford(data);
+                })
+                .catch(err => {
+                    setLoading(false);
+                    showToast('Error', 'Benford analysis failed', 'error');
+                });
+        }
+        
+        function flagSuspicious() {
+            isShowingAll = false;
+            setLoading(true);
+            fetch('/api/suspicious')
+                .then(r => r.json())
+                .then(data => {
+                    currentData = data;
+                    displayTable(data, 'Suspicious Keywords', false);
+                });
+        }
+        
+        function flagDiscrepancies() {
+            isShowingAll = false;
+            setLoading(true);
+            fetch('/api/discrepancies')
+                .then(r => r.json())
+                .then(data => {
+                    currentData = data;
+                    displayTable(data, 'Payment Discrepancies', false);
+                });
+        }
+
+        function setLoading(isLoading) {
+            const result = document.getElementById('result');
+            if (isLoading) {
+                result.innerHTML = `
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Fetching data...</p>
+                    </div>`;
+            }
+        }
+        
+        function displayTable(data, title, showActions = false) {
+            const result = document.getElementById('result');
+            
+            if (!data || data.length === 0) {
+                result.innerHTML = `
+                    <div class="no-data">
+                        <svg class="icon" style="width:48px;height:48px;color:#d1d5db" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                        <p>No records found for "${title}"</p>
+                    </div>`;
+                return;
+            }
+            
+            const cols = Object.keys(data[0]);
+            
+            // Legend logic
+            let legend = '';
+            if (!showActions) {
+                legend = `
+                  <div style="display:flex; gap:12px; padding: 1rem 1.5rem; background: #fffbeb; border-bottom: 1px solid var(--border); font-size: 0.875rem; flex-wrap:wrap;">
+                    <span style="font-weight:600; color:var(--text-muted)">Legend:</span>
+                    <span class="badge badge-dup">Duplicate</span>
+                    <span class="badge badge-weekend">Weekend</span>
+                    <span class="badge badge-near">Near Limit</span>
+                    <span class="badge badge-over">Over Limit</span>
+                    <span class="badge badge-suspicious">Suspicious Keyword</span>
+                    <span class="badge badge-discrepancy">Discrepancy</span>
+                  </div>
+                `;
+            }
+
+            let html = `
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="font-size: 1.125rem; font-weight: 600;">${title}</h3>
+                    <span id="recordCount" style="font-size: 0.875rem; color: var(--text-muted); background: #f3f4f6; padding: 4px 8px; border-radius: 4px;">
+                        ${data.length} records shown
+                    </span>
+                </div>
+                ${legend}
+                <div class="table-wrapper">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                ${cols.map(c => '<th>' + c.replace(/_/g, ' ') + '</th>').join('')}
+                                ${showActions ? '<th class="text-right">Actions</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Load More Container -->
+                <div id="loadMoreContainer" style="text-align:center; padding: 20px; display:none;">
+                    <button id="loadMoreBtn" class="btn btn-white" onclick="showAll(false)">Load More Records</button>
+                    <p id="allLoadedText" style="color:var(--text-muted); display:none;">All records loaded</p>
+                </div>
+            `;
+            
+            result.innerHTML = html;
+            appendRows(data, showActions);
+        }
+
+        function appendRows(data, showActions) {
+            const tbody = document.getElementById('tableBody');
+            if (!tbody) return; // Should not happen
+            
+            const cols = Object.keys(currentData[0] || data[0]); // Use keys from first available record
+
+            data.forEach(row => {
+                let rowClass = '';
+                if (row._reason === 'duplicate') rowClass = 'row-duplicate';
+                else if (row._reason === 'weekend') rowClass = 'row-weekend';
+                else if (row._reason === 'near_limit') rowClass = 'row-near';
+                else if (row._reason === 'over_limit') rowClass = 'row-over';
+                else if (row._reason === 'suspicious_keyword') rowClass = 'row-suspicious';
+                else if (row._reason === 'discrepancy') rowClass = 'row-discrepancy';
+
+                const tr = document.createElement('tr');
+                tr.className = rowClass;
+                
+                let html = '';
+                cols.forEach(col => {
+                    const val = row[col] ?? '';
+                    html += `<td>${val}</td>`;
+                });
+                
+                if (showActions) {
+                    const expenseId = row.expense_id;
+                    html += `
+                        <td class="text-right">
+                            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                <button class="btn btn-ghost" title="Edit" onclick="editRecord('${expenseId}')">
+                                    <svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                </button>
+                                <button class="btn btn-ghost" title="Delete" style="color:var(--danger)" onclick="deleteRecord('${expenseId}')">
+                                    <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                }
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateLoadMoreUI(hasMore, total) {
+            const container = document.getElementById('loadMoreContainer');
+            const btn = document.getElementById('loadMoreBtn');
+            const text = document.getElementById('allLoadedText');
+            const countBadge = document.getElementById('recordCount');
+            
+            if (!isShowingAll) {
+                if (container) container.style.display = 'none';
+                return;
+            }
+
+            if (container) container.style.display = 'block';
+            
+            if (hasMore) {
+                if(btn) {
+                    btn.style.display = 'inline-flex';
+                    btn.innerText = 'Load More Records';
+                }
+                if(text) text.style.display = 'none';
+            } else {
+                if(btn) btn.style.display = 'none';
+                if(text) text.style.display = 'block';
+            }
+            
+            if(countBadge) {
+                countBadge.innerText = `Showing ${currentData.length} of ${total} records`;
+            }
+        }
+
+        function displayBenford(data) {
+            const result = document.getElementById('result');
+            
+            if (data.error) {
+                result.innerHTML = `<div class="no-data"><p>${data.error}</p></div>`;
+                return;
+            }
+            
+            let bars = '';
+            data.stats.forEach(stat => {
+                // Scale height: max roughly 40% height for visual
+                const hActual = Math.min(stat.actual_pct * 2.5, 100); 
+                const hExpected = Math.min(stat.expected_pct * 2.5, 100);
+                
+                bars += `
+                    <div class="bar-group">
+                        <div class="bar-wrapper">
+                            <div class="bar expected" style="height: ${hExpected}%" title="Expected: ${stat.expected_pct}%"></div>
+                            <div class="bar actual" style="height: ${hActual}%" title="Actual: ${stat.actual_pct}%"></div>
+                        </div>
+                        <div class="bar-val">${stat.actual_pct}%</div>
+                        <div class="bar-label">${stat.digit}</div>
+                    </div>
+                `;
+            });
+            
+            const alertClass = data.is_suspicious ? 'badge-over' : 'badge-near';
+            const alertText = data.is_suspicious 
+                ? `⚠️ Suspicious: Max deviation ${data.max_deviation_pct}% (Threshold: 5%)`
+                : `✅ Normal: Max deviation ${data.max_deviation_pct}%`;
+            
+            const html = `
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border);">
+                    <h3 style="font-size: 1.125rem; font-weight: 600;">Benford's Law Analysis</h3>
+                    <p style="color:var(--text-muted); margin-top:5px; font-size:0.875rem;">
+                        Analyzed ${data.total_analyzed} records. 
+                        Dark bar = Actual, Light bar = Expected (Benford).
+                    </p>
+                    <div style="margin-top:10px;">
+                        <span class="badge ${alertClass}">${alertText}</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="bar-chart">
+                        ${bars}
+                    </div>
+                </div>
+            `;
+            
+            result.innerHTML = html;
+        }
+        
+        function downloadCSV() {
+            if (currentData.length === 0) {
+                showToast('Error', 'No data to download.', 'error');
+                return;
+            }
+            window.location.href = '/download';
+            showToast('Success', 'Download started!');
+        }
+        
+        // --- Modal Logic ---
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Record';
+            document.getElementById('recordForm').reset();
+            document.getElementById('expense_id').readOnly = false;
+            
+            const modal = document.getElementById('recordModal');
+            modal.style.display = 'block';
+            // Slight delay for animation
+            setTimeout(() => modal.classList.add('show'), 10);
+        }
+        
+        function editRecord(expenseId) {
+            editingId = expenseId;
+            document.getElementById('modalTitle').textContent = 'Edit Record';
+            
+            fetch(`/api/get/${expenseId}`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('expense_id').value = data.expense_id || '';
+                    document.getElementById('expense_id').readOnly = true;
+                    document.getElementById('employee').value = data.employee || '';
+                    document.getElementById('department').value = data.department || '';
+                    document.getElementById('expense_date').value = data.expense_date || '';
+                    document.getElementById('amount_usd').value = data.amount_usd || '';
+                    document.getElementById('currency').value = data.currency || '';
+                    document.getElementById('category').value = data.category || '';
+                    document.getElementById('merchant').value = data.merchant || '';
+                    document.getElementById('invoice_no').value = data.invoice_no || '';
+                    document.getElementById('invoice_city').value = data.invoice_city || '';
+                    document.getElementById('trip_to_city').value = data.trip_to_city || '';
+                    document.getElementById('approver').value = data.approver || '';
+                    document.getElementById('paid_amount_usd').value = data.paid_amount_usd || '';
+                    
+                    const modal = document.getElementById('recordModal');
+                    modal.style.display = 'block';
+                    setTimeout(() => modal.classList.add('show'), 10);
+                })
+                .catch(err => showToast('Error', 'Failed to load record', 'error'));
+        }
+        
+        function closeModal() {
+            const modal = document.getElementById('recordModal');
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                document.getElementById('recordForm').reset();
+                editingId = null;
+            }, 300);
+        }
+        
+        function saveRecord() {
+            const formData = {
+                expense_id: document.getElementById('expense_id').value,
+                employee: document.getElementById('employee').value,
+                department: document.getElementById('department').value,
+                expense_date: document.getElementById('expense_date').value,
+                amount_usd: document.getElementById('amount_usd').value,
+                currency: document.getElementById('currency').value,
+                category: document.getElementById('category').value,
+                merchant: document.getElementById('merchant').value,
+                invoice_no: document.getElementById('invoice_no').value,
+                invoice_city: document.getElementById('invoice_city').value,
+                trip_to_city: document.getElementById('trip_to_city').value,
+                approver: document.getElementById('approver').value,
+                paid_amount_usd: document.getElementById('paid_amount_usd').value
+            };
+            
+            const url = editingId ? `/api/update/${editingId}` : '/api/add';
+            const method = editingId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(formData)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Success', data.message);
+                    closeModal();
+                    showAll(); // Refresh data
+                    location.reload(); // Reload stats
+                } else {
+                    showToast('Error', data.error, 'error');
+                }
+            })
+            .catch(err => showToast('Error', 'Network error occurred', 'error'));
+        }
+        
+        function deleteRecord(expenseId) {
+            if (!confirm(`Are you sure you want to delete expense ${expenseId}?`)) {
+                return;
+            }
+            
+            fetch(`/api/delete/${expenseId}`, {method: 'DELETE'})
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Deleted', data.message);
+                        showAll();
+                        location.reload(); 
+                    } else {
+                        showToast('Error', data.error, 'error');
+                    }
+                })
+                .catch(err => showToast('Error', 'Delete failed', 'error'));
+        }
+        
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('recordModal');
+            const tModal = document.getElementById('thresholdModal');
+            if (event.target == modal) closeModal();
+            if (event.target == tModal) closeThresholdModal();
+        }
+        
+        // Init
+        showAll();
+    </script>
+</body>
+</html>
