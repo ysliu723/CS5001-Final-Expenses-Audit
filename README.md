@@ -93,16 +93,23 @@ python3 main.py expenses_usa_2024.csv benford-analysis
 
 ---
 
+
+## Futere work
+
+*   Move the system to a relational database like SQLite
+
+---
+
 ## Thinking
 
-* 
-"AI can recite the definition of Benford's Law, but it didn't decide to apply it to this specific audit scenario—I did."
+ 
+AI can recite the definition of Benford's Law, but it didn't decide to apply it to this specific audit scenario—I did.
 
-"AI can write a file-save function, but it doesn't understand the panic and professional liability of losing client data—I do."
+AI can write a file-save function, but it doesn't understand the panic and professional liability of losing client data—I do.
 
-"So, my takeaway is this: Use AI to move faster, but never use it to replace your professional judgment."
+So, my takeaway is this: Use AI to move faster, but never use it to replace your professional judgment.
 
-"Be the Architect who designs the system; let AI be the Builder who lays the bricks. That is how we should use AI."
+Be the Architect who designs the system; let AI be the Builder who lays the bricks. That is how we should use AI.
 
 
 ---
