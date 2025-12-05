@@ -25,7 +25,7 @@ It implements **9 Core Functionalities** (exceeding the required 6), covering ad
 
 ---
 
-## Project Structure
+## Project Structure(MVC Pattern)
 
 The code is organized into a clean, modular structure for maintainability:
 
