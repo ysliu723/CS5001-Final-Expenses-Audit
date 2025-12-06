@@ -197,7 +197,7 @@ def run_menu() -> None:
             print("\n Starting web server...")
             print(" Open your browser and go to: http://127.0.0.1:5001")
             print("  Press Ctrl+C to stop the server\n")
-            app.run(debug=True, use_reloader=False)
+            app.run(debug=False, port=5001)
 
         elif choice == "8":
             print("\nThank you for using the Expenses Audit Tool. Goodbye!")
